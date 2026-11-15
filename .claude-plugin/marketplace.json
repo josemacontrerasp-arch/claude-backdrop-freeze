@@ -13,7 +13,7 @@
     {
       "name": "clone-wars",
       "source": "./clone-wars",
-      "description": "Two animated pixel-art backdrops for the desktop app: a space battle with original ship designs, and the Claude mascot asleep until a firework goes off. /clone-wars battle, /clone-wars fireworks."
+      "description": "Three animated pixel-art backdrops for the desktop app: a space battle, the Claude mascot asleep until a firework goes off, and a process plant that runs while Claude works. /clone-wars battle, fireworks or plant."
     }
   ]
 }

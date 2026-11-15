@@ -1,10 +1,15 @@
 import type { EngineInterface, Register, ThemeSetArgs } from 'claude-code'
 
+import { plantSvg } from './plant'
+import type { PlantState } from './plant'
 import { battleSvg, checkSvg } from './scene'
 import { sleepySvg } from './sleepy'
 
-/** The scenes a person can choose between: the space battle, or the Claude mascot asleep until its firework goes off. */
-type Scene = 'battle' | 'fireworks'
+/**
+ * The scenes a person can choose between: the space battle, the Claude mascot asleep until its firework goes off,
+ * or the little plant its chemist runs, which works only while Claude does.
+ */
+type Scene = 'battle' | 'fireworks' | 'plant'
 /** What is drawn: one of the scenes, or a test card that shows which kinds of animation run in this window. */
 type Card = Scene | 'check'
 /**
@@ -17,7 +22,14 @@ type Glass = { blur: number; opacity: number }
 
 // A scene's name says both what it is and how it is drawn, so a change of either is a new scene to the app and is
 // drawn afresh. The Backdrop hook draws only where it reads one of these names.
-const SCENES: Record<string, { card: Card; draw: Draw }> = {
+const SCENES: Record<string, { card: Card; draw: Draw; state?: PlantState }> = {
+  // The plant is three pictures, one for each state of the session: see plant.ts.
+  'clone-wars-plant-idle': { card: 'plant', draw: 'frame', state: 'idle' },
+  'clone-wars-plant-run': { card: 'plant', draw: 'frame', state: 'run' },
+  'clone-wars-plant-done': { card: 'plant', draw: 'frame', state: 'done' },
+  'clone-wars-plant-idle-image': { card: 'plant', draw: 'image', state: 'idle' },
+  'clone-wars-plant-run-image': { card: 'plant', draw: 'image', state: 'run' },
+  'clone-wars-plant-done-image': { card: 'plant', draw: 'image', state: 'done' },
   'clone-wars-battle': { card: 'battle', draw: 'frame' },
   'clone-wars-battle-image': { card: 'battle', draw: 'image' },
   'clone-wars-fireworks': { card: 'fireworks', draw: 'frame' },
@@ -50,7 +62,7 @@ const DEFAULT_DRAW: Draw = 'frame'
 const GLASS_USAGE =
   'Type /clone-wars glass <blur 0-64> <opacity 0-1>: for example /clone-wars glass 0 0.6 for hard pixels, /clone-wars glass 12 0.6 for heavy frost, or /clone-wars glass reset.'
 const CHECK_USAGE = 'Type /clone-wars check, /clone-wars check frame or /clone-wars check image.'
-const USAGE = 'Type /clone-wars on, off, battle, fireworks, check, glass <blur> <opacity>, or draw image|frame.'
+const USAGE = 'Type /clone-wars on, off, battle, fireworks, plant, check, glass <blur> <opacity>, or draw image|frame.'
 
 // The module's own variables start over on a reload, and `session.start` runs again then, so all are learnt anew.
 /** Whether this mod's backdrop is the one the session shows, as far as this load has seen. */
@@ -59,6 +71,10 @@ let isStanding = false
 let isAnothers = false
 /** How many of this mod's own theme calls are in flight: the hooks below tell them from another mod's by it. */
 let ownCalls = 0
+/** The scene this mod set last, by its name: what stands while `isStanding`. */
+let standing = ''
+/** What the session is doing, as the plant shows it: at rest, in a turn, or just done with one. */
+let plantState: PlantState = 'idle'
 function isGlass(value: unknown): value is Glass {
   if (typeof value !== 'object' || value === null) {
     return false
@@ -105,7 +121,7 @@ async function pickedOf($: EngineInterface): Promise<Scene> {
   try {
     const kept = await $.store.get(SCENE_KEY)
 
-    if (kept === 'battle' || kept === 'fireworks') {
+    if (kept === 'battle' || kept === 'fireworks' || kept === 'plant') {
       return kept
     }
 
@@ -120,7 +136,7 @@ async function pickedOf($: EngineInterface): Promise<Scene> {
 }
 
 function sceneOf(card: Card, draw: Draw): string {
-  return `clone-wars-${card}${draw === 'image' ? '-image' : ''}`
+  return `clone-wars-${card === 'plant' ? `plant-${plantState}` : card}${draw === 'image' ? '-image' : ''}`
 }
 
 /** On unless the person turned it off. A store that cannot be read counts as on: the mod's whole job is to show. */
@@ -154,6 +170,7 @@ async function put($: EngineInterface, scene: string): Promise<Awaited<ReturnTyp
 
     isStanding = true
     isAnothers = false
+    standing = scene
 
     return set
   } finally {
@@ -168,6 +185,20 @@ async function put($: EngineInterface, scene: string): Promise<Awaited<ReturnTyp
 async function bringBack($: EngineInterface): Promise<void> {
   if (!isStanding && !isAnothers && (await isOn($))) {
     await show($)
+  }
+}
+
+/**
+ * The plant follows the session: it runs from the start of a turn to its end, then shows the batch done, or goes
+ * back to rest where the turn was cut short. The state is kept whatever is showing, and the picture is changed
+ * only where the plant is the picture that stands: never over another scene, a test card or another mod's theme.
+ */
+async function plantTo($: EngineInterface, state: PlantState): Promise<void> {
+  if (plantState === state) return
+
+  plantState = state
+  if (isStanding && SCENES[standing]?.card === 'plant') {
+    await show($, 'plant')
   }
 }
 
@@ -264,8 +295,8 @@ export const register: Register = on => {
       await $.command.register({
         name: 'clone-wars',
         description:
-          'The scene behind the chat: "on" shows it, "off" takes it away, "battle" and "fireworks" pick the space battle or the sleeping Claude with its firework, "glass <blur> <opacity>" sets the frost over it, "draw image|frame" picks how the app draws it, "check" shows a test card of which kinds of animation run here.',
-        argumentHint: 'on|off|battle|fireworks|check|glass <blur> <opacity>|draw image|frame',
+          'The scene behind the chat: "on" shows it, "off" takes it away, "battle", "fireworks" and "plant" pick the space battle, the sleeping Claude with its firework, or the chemist Claude whose plant runs while Claude works, "glass <blur> <opacity>" sets the frost over it, "draw image|frame" picks how the app draws it, "check" shows a test card of which kinds of animation run here.',
+        argumentHint: 'on|off|battle|fireworks|plant|check|glass <blur> <opacity>|draw image|frame',
         immediate: true,
       })
     } catch (error) {
@@ -296,6 +327,27 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // The plant runs for as long as Claude does: from the start of a turn of the main loop to its end. A subagent's
+  // turns are inside that one and change nothing.
+  on('turn.start', async ($, e, next) => {
+    if (e.agentId === undefined) {
+      await quietly($, () => plantTo($, 'run'))
+    }
+
+    return next(e)
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    const result = await next(e)
+
+    if (e.agentId === undefined) {
+      // An answer is a batch done. A turn that was stopped, refused or failed leaves the plant at rest.
+      await quietly($, () => plantTo($, e.reason === 'answer' ? 'done' : 'idle'))
+    }
+
+    return result
+  })
+
   // One theme stands at a time, the latest set. Another mod's set takes this one's place, and that is the person's
   // choice, so it is only noted: the backdrop is not put back over it, at the next prompt or later, until a clear.
   on('theme.set', async ($, e, next) => {
@@ -316,6 +368,7 @@ export const register: Register = on => {
 
     isStanding = false
     isAnothers = false
+    standing = ''
     if (ownCalls === 0) {
       await quietly($, () => bringBack($))
     }
@@ -347,17 +400,18 @@ export const register: Register = on => {
     }
 
     // 'claude' is what an earlier build called the fireworks scene.
-    if (word === 'battle' || word === 'fireworks' || word === 'claude') {
-      const picked: Scene = word === 'battle' ? 'battle' : 'fireworks'
+    if (word === 'battle' || word === 'fireworks' || word === 'claude' || word === 'plant') {
+      const picked: Scene = word === 'claude' ? 'fireworks' : word
 
       await $.store.set(SCENE_KEY, picked)
       // Picking a scene is asking to see it: it also turns the backdrop on.
       await $.store.delete(OFF_KEY)
 
       const set = await show($)
-      const name = picked === 'battle' ? 'The space battle' : 'Fireworks'
+      const name = picked === 'battle' ? 'The space battle' : picked === 'fireworks' ? 'Fireworks' : 'The plant'
+      const more = picked === 'plant' ? ' It runs while Claude works, and rests when the answer is done.' : ''
 
-      return { text: set.isDrawn ? `${name} is the scene now.` : `${name} is the scene now, but nothing here draws it: ${set.reason}` }
+      return { text: set.isDrawn ? `${name} is the scene now.${more}` : `${name} is the scene now, but nothing here draws it: ${set.reason}` }
     }
 
     if (word === 'on') {
@@ -388,7 +442,7 @@ export const register: Register = on => {
     const glass = await glassOf($)
 
     return {
-      text: `Clone Wars backdrop is ${(await isOn($)) ? 'on' : 'off'}, showing ${(await pickedOf($)) === 'battle' ? 'the space battle' : 'fireworks'}, drawn as ${(await drawOf($)) === 'image' ? 'an image' : 'a frame'}, glass at blur ${glass.blur}, opacity ${glass.opacity}. ${USAGE}`,
+      text: `Clone Wars backdrop is ${(await isOn($)) ? 'on' : 'off'}, showing ${{ battle: 'the space battle', fireworks: 'fireworks', plant: 'the plant' }[await pickedOf($)]}, drawn as ${(await drawOf($)) === 'image' ? 'an image' : 'a frame'}, glass at blur ${glass.blur}, opacity ${glass.opacity}. ${USAGE}`,
     }
   })
 
@@ -401,13 +455,18 @@ export const register: Register = on => {
     }
 
     const { Svg } = $.ui.resolve(e)
-    const source = scene.card === 'check' ? checkSvg() : scene.card === 'fireworks' ? sleepySvg() : battleSvg()
+    const source =
+      scene.card === 'check' ? checkSvg() : scene.card === 'fireworks' ? sleepySvg() : scene.card === 'plant' ? plantSvg(scene.state ?? 'idle') : battleSvg()
     const alt =
       scene.card === 'check'
         ? 'A test card of moving squares that shows which kinds of animation run in this window'
         : scene.card === 'fireworks'
           ? 'The Claude mascot asleep on a hill at night; a firework wakes it and bursts into the words: Pepe use more tokens'
-          : 'A pixel-art space battle: white wedge-shaped ships on the left trade laser fire with rust-brown crescent cruisers on the right, over a blue planet'
+          : scene.card === 'plant'
+            ? `A blueprint of a small process plant run by the Claude mascot in a lab coat and goggles: tokens are pumped into a reactor named Claude and code comes out. ${
+                { idle: 'It is at rest, the liquid in the reactor window purple.', run: 'It is running: drops fall into the purple liquid and bloom pink.', done: 'The batch is done: the liquid has turned pink.' }[scene.state ?? 'idle']
+              }`
+            : 'A pixel-art space battle: white wedge-shaped ships on the left trade laser fire with rust-brown crescent cruisers on the right, over a blue planet'
 
     // `isInteractive` is what asks for the sandboxed frame; without it the app draws an image.
     return scene.draw === 'frame' ? <Svg isInteractive alt={alt} source={source} /> : <Svg alt={alt} source={source} />

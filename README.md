@@ -4,7 +4,7 @@ A mod for the Claude Code desktop app can draw an animated SVG behind the chat. 
 
 This repository lists what was found to cause that, with the measurements, a mod that reproduces it in one command, and a script that checks a scene for it.
 
-Measured on one machine, on build 5.11492.5.0 of the app for Windows, on 2026-11-15. The cause inside the app is not known.
+Measured on one machine, on build 5.11492.5.0 of the app for Windows, on 2026-11-15. The cause inside the app is not known. Reported to Anthropic as [anthropics/claude-code#110262](https://github.com/anthropics/claude-code/issues/110262).
 
 ## What stops a scene
 
@@ -60,21 +60,24 @@ The first picture moves. The second is the same picture with `.vb{}` added to it
 | [tools/check-scene.mjs](tools/check-scene.mjs) | reads an SVG and lists what in it is known to stop it |
 | [tools/bench.ps1](tools/bench.ps1), [tools/bench-hook.md](tools/bench-hook.md) | show test pictures in the real window from a script and measure each |
 | [backdrop-freeze-repro](backdrop-freeze-repro) | a mod that shows one picture with or without each trigger |
-| [clone-wars](clone-wars) | the mod this was found in: two animated pixel-art backdrops, and a test that guards against all of the above |
+| [clone-wars](clone-wars) | the mod this was found in: three animated pixel-art backdrops, and a test that guards against all of the above |
 
 ## The mod this came from
 
-`clone-wars` draws a pixel-art space battle, or the Claude mascot asleep until a firework goes off, behind the chat.
+`clone-wars` draws one of three scenes behind the chat: a pixel-art space battle, the Claude mascot asleep until a firework goes off, or a little process plant run by the mascot in a lab coat.
 
 ```
 /plugin install clone-wars --marketplace josemacontrerasp-arch/claude-backdrop-freeze
 /clone-wars battle
 /clone-wars fireworks
+/clone-wars plant
 ```
 
 Its battle stood still for a day. Early builds asked for `crispEdges`; every build named one of its volleys `vb`. Renaming four animation classes fixed it.
 
 An animated full-window scene is not free. On the machine this was measured on, the battle kept the app's main process at about one full processor core while the window was visible, and the fireworks scene at about half that.
+
+The plant is built round that cost. It hooks `turn.start` and `turn.complete` and shows one of three pictures: at rest nothing moves, during a reply the pumps turn and drops fall into the reactor's window like a titration, and when the answer is done the liquid turns pink once and everything stops. Only the running picture has an animation that repeats.
 
 ## Limits
 

@@ -21,7 +21,7 @@
 
 const LOOP = 32
 // The art is drawn on a 320 by 200 grid and written out this many times as large.
-const ENLARGE = 5
+export const ENLARGE = 5
 
 // The story's moments, in seconds into the loop.
 const DROP = 5 // the firework falls in beside the mascot
@@ -42,8 +42,8 @@ const HERO = { x: 226, y: GROUND - 8 * UNIT }
 const ROCKET = { x: 210, y: GROUND - 16 }
 const SKY_BURST = { x: 196, y: 62 } // where the firework goes off, and the middle of the words
 
-const MASCOT = '#c77f5f'
-const EYE = '#0d0b0a'
+export const MASCOT = '#c77f5f'
+export const EYE = '#0d0b0a'
 
 const INK: Record<string, string> = {
   w: '#f4f6fb',
@@ -53,13 +53,13 @@ const INK: Record<string, string> = {
   z: '#cfe0ff',
 }
 
-type Cells = string[][]
+export type Cells = string[][]
 
-function blank(width: number, height: number): Cells {
+export function blank(width: number, height: number): Cells {
   return Array.from({ length: height }, () => Array.from({ length: width }, () => '.'))
 }
 
-function fill(cells: Cells, x: number, y: number, width: number, height: number, ink: string): void {
+export function fill(cells: Cells, x: number, y: number, width: number, height: number, ink: string): void {
   for (let row = y; row < y + height; row += 1) {
     for (let column = x; column < x + width; column += 1) {
       const line = cells[row]
@@ -69,12 +69,12 @@ function fill(cells: Cells, x: number, y: number, width: number, height: number,
   }
 }
 
-function cellsOf(rows: readonly string[]): Cells {
+export function cellsOf(rows: readonly string[]): Cells {
   return rows.map(row => [...row])
 }
 
 /** A drawing as rects, one group for each ink: runs along a row are one rect, and equal runs in rows one under another are one taller rect. */
-function rectsOf(cells: Cells, scale: number, dx: number, dy: number, inks: Record<string, string> = INK): string {
+export function rectsOf(cells: Cells, scale: number, dx: number, dy: number, inks: Record<string, string> = INK): string {
   const byInk = new Map<string, { x: number; y: number; width: number; height: number }[]>()
 
   cells.forEach((row, y) => {
@@ -322,7 +322,7 @@ function burst(): { body: string; rules: string } {
 
 // ---------------------------------------------------------------------------------------------- the words
 
-const FONT: Record<string, readonly string[]> = {
+export const FONT: Record<string, readonly string[]> = {
   P: ['####.', '#...#', '#...#', '####.', '#....', '#....', '#....'],
   E: ['#####', '#....', '#....', '####.', '#....', '#....', '#####'],
   U: ['#...#', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'],
@@ -458,14 +458,14 @@ function flight(): string {
 }
 
 /** Every length of the drawing multiplied by five, and each rect a hair wider and taller so that neighbours overlap. */
-function enlarged(markup: string): string {
+export function enlarged(markup: string): string {
   return markup
     .replace(/ (x|y)="(-?[\d.]+)"/g, (_whole, name: string, value: string) => ` ${name}="${Number(value) * ENLARGE}"`)
     .replace(/ (width|height)="(-?[\d.]+)"/g, (_whole, name: string, value: string) => ` ${name}="${Number(value) * ENLARGE + 0.6}"`)
 }
 
 /** Every distance a keyframe moves a part, multiplied by five. */
-function enlargedRules(css: string): string {
+export function enlargedRules(css: string): string {
   return css.replace(/translate\((-?[\d.]+)px,(-?[\d.]+)px\)/g, (_whole, x: string, y: string) => `translate(${Number(x) * ENLARGE}px,${Number(y) * ENLARGE}px)`)
 }
 

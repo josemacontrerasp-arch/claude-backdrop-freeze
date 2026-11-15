@@ -49,6 +49,8 @@ function world(on: On): string[] {
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
+  on('turn.complete', (_, e) => ({ text: e.answer }))
   on('theme.set', (_, e) => {
     shown.push(e.backdrop?.scene ?? 'no scene')
 
@@ -362,12 +364,69 @@ test('no scene holds anything that stops it in the desktop app', async ($, on) =
   expect(whatStopsIt('<svg shape-rendering="crispEdges"><style>.a{vector-effect:non-scaling-stroke}</style></svg>').length).toBe(2)
   expect(whatStopsIt('<svg><style>.bv{animation:bv 47s step-end infinite}@keyframes vb{from{width:5.6px}to{width:50%}}</style><g class="bv"/></svg>')).toEqual([])
 
-  for (const scene of [OURS, 'clone-wars-fireworks', 'clone-wars-check']) {
+  for (const scene of [OURS, 'clone-wars-fireworks', 'clone-wars-check', 'clone-wars-plant-idle', 'clone-wars-plant-run', 'clone-wars-plant-done']) {
     const ui = await $.ui.mount({ plugin: 'clone-wars', surface: 'desktop', component: 'Backdrop', props: { scene, plugin: 'clone-wars', glass: { blur: 2, tint: TINT, opacity: 0.6 } } })
     const source = String((await ui.find({ type: 'Svg' }))?.props.source)
 
     expect(source.startsWith('<svg ')).toBe(true)
     expect(whatStopsIt(source)).toEqual([])
+    await ui.unmount()
+  }
+})
+
+test('the plant runs while a turn does, shows the batch done, and rests when a turn is cut short', async ($, on) => {
+  const shown = world(on)
+  const ended = (turnId: string, reason: 'answer' | 'aborted', agentId?: string) => ({ answer: 'ok', durationMs: 5, isAborted: reason === 'aborted', turnId, reason, ...(agentId === undefined ? {} : { agentId }) })
+
+  await $.session.start(START)
+
+  const answer = await $.command.run(typed('clone-wars', 'plant'))
+
+  expect(answer.text).toBe('The plant is the scene now. It runs while Claude works, and rests when the answer is done.')
+  expect(shown.at(-1)).toBe('clone-wars-plant-idle')
+
+  // A turn of the main loop starts the plant, and its answer ends the batch.
+  await $.turn.start({ text: 'hello', turnId: 'one' })
+  expect(shown.at(-1)).toBe('clone-wars-plant-run')
+  // A subagent's turn inside it changes nothing.
+  await $.turn.start({ text: 'look this up', turnId: 'sub', agentId: 'helper' })
+  await $.turn.complete(ended('sub', 'answer', 'helper'))
+  expect(shown.at(-1)).toBe('clone-wars-plant-run')
+  await $.turn.complete(ended('one', 'answer'))
+  expect(shown.at(-1)).toBe('clone-wars-plant-done')
+
+  // A turn that is stopped leaves the plant at rest.
+  await $.turn.start({ text: 'again', turnId: 'two' })
+  await $.turn.complete(ended('two', 'aborted'))
+  expect(shown.slice(-2)).toEqual(['clone-wars-plant-run', 'clone-wars-plant-idle'])
+
+  // The pick is kept, and the state is what the next showing uses.
+  await $.command.run(typed('clone-wars', 'off'))
+  await $.command.run(typed('clone-wars', 'on'))
+  expect(shown.at(-1)).toBe('clone-wars-plant-idle')
+
+  // While another scene is chosen, a turn sets nothing.
+  await $.command.run(typed('clone-wars', 'battle'))
+
+  const before = shown.length
+
+  await $.turn.start({ text: 'more', turnId: 'three' })
+  await $.turn.complete(ended('three', 'answer'))
+  expect(shown.length).toBe(before)
+
+  // Only the running picture has anything that repeats: at rest and when done, the plant costs nothing to show.
+  for (const state of ['idle', 'run', 'done'] as const) {
+    const ui = await $.ui.mount({ plugin: 'clone-wars', surface: 'desktop', component: 'Backdrop', props: { scene: `clone-wars-plant-${state}`, plugin: 'clone-wars', glass: { blur: 2, tint: TINT, opacity: 0.6 } } })
+    const svg = (await ui.find({ type: 'Svg' }))?.props
+    const source = String(svg?.source)
+
+    expect(svg?.isInteractive).toBe(true)
+    expect(source.includes('viewBox="0 0 1600 1000"')).toBe(true)
+    expect(source.includes('infinite')).toBe(state === 'run')
+    // The liquid behind the reactor's window: purple until the batch is done, pink after.
+    expect(source.includes('fill="#ff7ac8" class="turned"')).toBe(state === 'done')
+    expect(source.includes('class="drop"')).toBe(state === 'run')
+    expect(String(svg?.alt).includes({ idle: 'at rest', run: 'running', done: 'turned pink' }[state])).toBe(true)
     await ui.unmount()
   }
 })

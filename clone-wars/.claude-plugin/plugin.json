@@ -1,7 +1,7 @@
 {
   "name": "clone-wars",
   "version": "0.1.0",
-  "description": "An animated pixel-art space battle behind the chat in the desktop app, with frosted-glass panels. Original ship designs. /clone-wars on and /clone-wars off.",
+  "description": "Three animated pixel-art backdrops for the desktop app: a space battle with original ship designs, the Claude mascot asleep until a firework goes off, and a little process plant its chemist runs while Claude works. /clone-wars battle, fireworks or plant.",
   "author": {
     "name": "josemacontrerasp-arch"
   }

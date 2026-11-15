@@ -1,13 +1,14 @@
 # Clone Wars backdrop
 
-Animated pixel-art scenes behind the chat in the Claude Code desktop app. There are two:
+Animated pixel-art scenes behind the chat in the Claude Code desktop app. There are three:
 
 - **The space battle.** Original ship designs: long white wedges with red chevrons on the left, tan and rust crescent cruisers with swarms of beetle-like droid fighters on the right, and a blue planet in the bottom right corner.
 - **Fireworks.** The Claude mascot, drawn exactly as its logo, asleep on a hill at night. A firework drops in beside it, it wakes, lights it, and it bursts into "PEPE USE MORE TOKENS". It cheers, nods off again, and it repeats every 32 seconds.
+- **The plant.** A small process plant drawn like a blueprint, run by the Claude mascot in a lab coat and safety goggles. Tokens are pumped into a reactor named CLAUDE, code comes out, and the excess burns at the flare. It works only while Claude does: at rest nothing moves; during a reply the pumps turn, tokens travel the pipes, and drops fall into the purple liquid behind the reactor's window, each one blooming pink like a titration near its end point; when the answer is done the whole batch turns pink and the chemist cheers.
 
 ## Use
 
-- `/clone-wars battle` and `/clone-wars fireworks` pick the scene, show it, and keep the pick.
+- `/clone-wars battle`, `/clone-wars fireworks` and `/clone-wars plant` pick the scene, show it, and keep the pick.
 - `/clone-wars on` shows the backdrop; `/clone-wars off` takes it away. Off stays off in later sessions until you turn it on again.
 - `/clone-wars` alone says what is set.
 - `/clone-wars check` swaps the scene for a test card of six lettered squares, and asks two things: which squares move, and whether the lower three keep moving once the card's bar is empty. `/clone-wars check frame` and `/clone-wars check image` draw the card one way or the other for that once. `/clone-wars on` brings your scene back.
@@ -35,11 +36,12 @@ Measured in the Windows desktop app (build 5.11492.5.0) on 2026-11-15: a scene w
 
 Lengths in `px`, `em`, `rem` and `%`, media queries on width in `px` or on the color scheme, and `image-rendering` are all fine. The battle stood still for a day because one of its animations was named `vb`, and before that because it asked for `crispEdges`. A test in `tests/` reads every scene for all of the above.
 
-Animating a scene costs about one processor core for as long as the window shows it, the battle more than fireworks.
+Animating a scene costs about one processor core for as long as the window shows it, the battle more than fireworks. The plant is built round that: its pictures at rest and when done have no animation that repeats, so it costs nothing except while Claude is working.
 
 ## Changing the art
 
 - The battle is in `hooks/scene.ts`: the palette at the top, the fighters, bolts and explosion frames as rows of letters, the capital ships as short functions, the four corners of the battle, and the test card at the bottom.
+- The plant is in `hooks/plant.ts`: three pictures (`idle`, `run`, `done`) from the same parts, and the hooks on `turn.start` and `turn.complete` in `hooks/register.tsx` that switch between them.
 - Fireworks is in `hooks/sleepy.ts`: the story's moments in seconds at the top, then the night, the mascot in parts (twelve units wide, eight tall), the firework and the words. It is built the plain way on purpose: plain groups and rects, with no `<use>`, `<symbol>`, pattern, clip or inner `<svg>`.
 
 `claude plugin test <this folder>` runs the tests in `tests/`.

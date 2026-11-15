@@ -1,0 +1,8 @@
+{
+  "name": "backdrop-freeze-repro",
+  "version": "0.1.0",
+  "description": "Shows a small animated backdrop in the desktop app with or without one thing that stops its CSS animation: /freeze-repro ok moves, /freeze-repro class stands still.",
+  "author": {
+    "name": "josemacontrerasp-arch"
+  }
+}

@@ -1,0 +1,6 @@
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+# the temporary measuring folder a mod reads while the bench is in use
+bench/

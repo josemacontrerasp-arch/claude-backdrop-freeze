@@ -1,0 +1,19 @@
+{
+  "name": "backdrop-freeze",
+  "description": "What stops an animated backdrop in the Claude desktop app: a mod that reproduces it, and the mod it was found in.",
+  "owner": {
+    "name": "josemacontrerasp-arch"
+  },
+  "plugins": [
+    {
+      "name": "backdrop-freeze-repro",
+      "source": "./backdrop-freeze-repro",
+      "description": "Shows a small animated backdrop in the desktop app with or without one thing that stops its CSS animation. /freeze-repro ok moves, /freeze-repro class stands still."
+    },
+    {
+      "name": "clone-wars",
+      "source": "./clone-wars",
+      "description": "Two animated pixel-art backdrops for the desktop app: a space battle with original ship designs, and the Claude mascot asleep until a firework goes off. /clone-wars battle, /clone-wars fireworks."
+    }
+  ]
+}
